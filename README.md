@@ -58,5 +58,28 @@ docker-compose logs -f npm
  - Access : http://<your-ec2-public-ip:81
  - <img width="918" height="409" alt="image" src="https://github.com/user-attachments/assets/3f2f7d65-4806-44ff-9575-a969edf09b29" />
 
- Project is successfully completed.
+ Project is successfully completed deploying Ngnix manager with docker compose.
+
+
+# Also created Jenkins Pipeline for docker-compose setup:
+- **Jenkinsfile (to be placed in your repository root and put groovy pipeline script)**
+- **Jenkins pipeline script for building and deploying the Nginx Proxy Manager using Docker Compose from the GitHub repository**
+
+ <img width="1633" height="606" alt="image" src="https://github.com/user-attachments/assets/640675fd-2bad-4c35-b5ef-81bbcd466c7e" />
+
+ <img width="938" height="825" alt="image" src="https://github.com/user-attachments/assets/0049a19a-fb41-493c-8fd3-6b70bd1e7a30" />
+
+ - **Here is the output, we have to access with localhost:80 & localhost:81**
+
+ <img width="1253" height="848" alt="image" src="https://github.com/user-attachments/assets/06bedb76-c35b-4a14-b99d-54a8ecf42fb6" />
+
+ <img width="1435" height="496" alt="image" src="https://github.com/user-attachments/assets/2e231e4e-abea-4196-90c6-44647d50e6fc" />
+
+ Pipeline has been build successfully.
+
+
+
+
+
+ 
 
