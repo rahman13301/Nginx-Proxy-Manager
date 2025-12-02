@@ -1,120 +1,57 @@
 pipeline {
     agent any
     
-    environment {
-        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
-        GITHUB_REPO = 'https://github.com/rahman13301/Nginx-Proxy-Manager.git'
-        REPO_NAME = 'Nginx-Proxy-Manager'
-    }
-    
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-    }
-    
     stages {
         stage('Checkout') {
             steps {
+                checkout scm: [
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/rahman13301/Nginx-Proxy-Manager.git'
+                    ]]
+                ]
+                
                 script {
-                    echo 'Cloning repository...'
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: '*/main']],
-                        userRemoteConfigs: [[
-                            url: env.GITHUB_REPO,
-                            credentialsId: '' // Add your credentials ID if needed
-                        ]],
-                        extensions: [[
-                            $class: 'CleanBeforeCheckout'
-                        ]]
-                    ])
+                    // Create docker-compose.yml if it doesn't exist
+                    if (!fileExists('docker-compose.yml')) {
+                        writeFile file: 'docker-compose.yml', text: '''
+version: '3.8'
+services:
+  app:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    environment:
+      DB_SQLITE_FILE: "/data/database.sqlite"
+'''
+                        echo 'Created docker-compose.yml file'
+                    }
                 }
             }
         }
         
-        stage('Validate Docker Compose') {
+        stage('Deploy') {
             steps {
-                script {
-                    echo 'Validating docker-compose file...'
-                    sh '''
-                        if [ -f "${DOCKER_COMPOSE_FILE}" ]; then
-                            echo "docker-compose.yml found"
-                            docker-compose config
-                        else
-                            echo "docker-compose.yml not found, checking for alternative names..."
-                            find . -name "docker-compose*.yml" -o -name "docker-compose*.yaml"
-                        fi
-                    '''
-                }
-            }
-        }
-        
-        stage('Build and Deploy') {
-            steps {
-                script {
-                    echo 'Stopping existing containers...'
-                    sh 'docker-compose down || true'
+                sh '''
+                    # Create directories
+                    mkdir -p data letsencrypt
                     
-                    echo 'Pulling latest images...'
-                    sh 'docker-compose pull'
+                    # Deploy using docker-compose
+                    docker-compose down || true
+                    docker-compose up -d
                     
-                    echo 'Building and starting containers...'
-                    sh 'docker-compose up -d --build'
-                    
-                    echo 'Checking container status...'
-                    sh '''
-                        sleep 10
-                        docker-compose ps
-                        docker-compose logs --tail=20
-                    '''
-                }
+                    # Check status
+                    sleep 15
+                    docker-compose ps
+                '''
             }
-        }
-        
-        stage('Health Check') {
-            steps {
-                script {
-                    echo 'Performing health check...'
-                    sh '''
-                        # Check if containers are running
-                        if docker-compose ps | grep -q "Up"; then
-                            echo "Containers are running successfully"
-                            
-                            # You can add curl checks here for Nginx Proxy Manager
-                            # curl -f http://localhost:81 || echo "Service check failed but continuing"
-                        else
-                            echo "Warning: Some containers may not be running"
-                            docker-compose ps
-                            exit 1
-                        fi
-                    '''
-                }
-            }
-        }
-    }
-    
-    post {
-        success {
-            echo 'Nginx Proxy Manager deployment completed successfully!'
-            sh '''
-                echo "Containers:"
-                docker-compose ps
-                echo "\nLogs (last 10 lines):"
-                docker-compose logs --tail=10
-            '''
-        }
-        failure {
-            echo 'Deployment failed!'
-            sh '''
-                echo "Error logs:"
-                docker-compose logs
-                echo "\nContainer status:"
-                docker-compose ps
-            '''
-        }
-        always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
         }
     }
 }
